@@ -74,13 +74,10 @@ add.col <- function(symbol) {
 }
 
 ## Question 2
+## input data from csv file
 df2 <- read.csv("NIHHarvard.csv", header = TRUE, sep = ",")
-for (i in 1: nrow(df2)) {
-  filter(substring(as.character(df2$Activity[i]),1,1) = c("T", "F")) {
-    df2 <- df2[-i]
-  }
-}
 
+## remove the activity starting as T or F and save it as df3
 df2 %>%
   filter(substring(as.character(Activity),1,1) != "T" & substring(as.character(Activity),1,1) != "F") -> df3
 
@@ -88,9 +85,9 @@ df3 <- as.data.frame(df3)
 
 namelist <- unique(df3$Contact.PI...Project.Leader)
 namelist.n <- lapply(namelist, str_replace_all, fixed("   "), "   ")
-namelist.s <- word(namelist, 1,2, sep=" ")
-namelist.s <- lapply(namelist.s, str_replace_all, fixed(","), "+")
-namelist.s <- lapply(namelist.s, str_replace_all, fixed(" "), "")
+namelist.s <- gsub("\\s*\\w*$", "", namelist)
+namelist.s <- lapply(namelist.s, str_replace_all, fixed(", "), "%2C+")
+#namelist.s <- lapply(namelist.s, str_replace_all, fixed(" "), "+")
 
 
 ## approaches 
@@ -99,7 +96,7 @@ library(xml2)                           # another XML package
 
 getGS <- function(aname, affli, bname) {
   re <- NULL
-  topicname <- paste0(aname, "[Author]", affli, "[Affiliation]") 
+  topicname <- paste0(aname, "%5Author%5D+AND+", affli, "%5Affiliation%5D") 
       url <- paste0("https://www.ncbi.nlm.nih.gov/pubmed/?term=", topicname)
     html <- htmlParse(getURL(url), encoding="UTF-8")
     anum <- xpathSApply(html, "//*[@class='title_and_pager']", xmlValue)
@@ -116,13 +113,14 @@ getGS <- function(aname, affli, bname) {
   return(re)
 }
 
+
 ## loop 
 re <- mapply(function(x, y) {getGS(x, "Harvard", y)}, x = namelist.s, y = namelist.n)
 
 ## join the data frame
 re.new <- as.data.frame(re, stringsAsFactors = FALSE)
 re.new <- as.data.frame(t(re.new))
-final <- left_join(df2, re.new, by = "Contact.PI...Project.Leader")
+final <- left_join(df3, re.new, by = "Contact.PI...Project.Leader")
 final[, "searchname"] <- list(NULL)
 
 ## export the csv file from data frame
