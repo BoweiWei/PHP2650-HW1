@@ -6,12 +6,27 @@ library(httr)
 library(dplyr)
 library(RSelenium)
 library(stringr)
+library(rvest)
 ## input the S&P 100 list
-tables <- GET("http://en.wikipedia.org/wiki/S%26P_100")
-tables <- readHTMLTable(rawToChar(tables$content))
-SPList <- head(tables[3])
-SPList <- SPList[[1]]
-symSP <- SPList$Symbol
+#tables <- GET("http://en.wikipedia.org/wiki/S%26P_100")
+#tables <- readHTMLTable(rawToChar(tables$content))
+#SPList <- head(tables[3])
+#SPList <- SPList[[1]]
+#SPList[17,1] <- 'BRK-B'
+#symSP <- SPList$Symbol
+
+url <- "https://en.wikipedia.org/wiki/S%26P_100"
+
+SP100.table <- url %>%
+  read_html() %>%
+  html_nodes(xpath = '//*[@id="mw-content-text"]/div/table[3]') %>%
+  html_table()
+
+SP100.table <- SP100.table[[1]]
+
+# Change BRK.B to BRK-B
+
+SP100.table$Symbol[SP100.table$Symbol == 'BRK.B'] <- 'BRK-B'
 
 ## input the yahoo finance data
 #URLlist <- NULL
@@ -19,6 +34,24 @@ symSP <- SPList$Symbol
 #    URLlist[i] <- paste("https://finance.yahoo.com/quote/", symSP[[i]], "/history?p=", symSP[[i]], sep = "")
 #}
 
+## Try the standard way for downloading webpages 
+theurl <- "https://finance.yahoo.com/quote/XOM/history?p=XOM"
+a <- getURL(theurl)
+a <- readLines(tc <- textConnection(a)); close(tc)
+fileConn<-file("output.html") # no download data button
+writeLines(a, fileConn)
+close(fileConn)
+
+rs <- rsDriver(extraCapabilities = list(
+  chromeOptions = 
+    list(prefs = list(
+      "profile.default_content_settings.popups" = 0L,
+      "download.prompt_for_download" = FALSE,
+      "download.default_directory" = "/Users/boweiwei/Documents/PHP2650-HW1/data"
+    )
+    )
+))
+rsc <- rs$client
 
 downloadHPYahoo <- function(symbol) {
   Sys.sleep(10+runif(1)*20)
@@ -27,8 +60,17 @@ downloadHPYahoo <- function(symbol) {
   hpcsv$clickElement()
 }
 
-for (s in 1:length(symSP)) {
-  downloadHPYahoo(symSP[s])
+## download the csv file in a loop
+for (s in 1:length(SP100.table$Symbol)) {
+  downloadHPYahoo(SP100.table$Symbol[s])
+}
+
+downloadHPYahoo("BRK-B")
+
+## add a column into the csv file
+add.col <- function(symbol) {
+  df <- read.csv(past0(symbol, ".csv"), header = TRUE, sep = ",")
+  df <- left_join()
 }
 
 ## Question 2
@@ -46,8 +88,6 @@ df3 <- as.data.frame(df3)
 
 namelist <- unique(df3$Contact.PI...Project.Leader)
 namelist.n <- lapply(namelist, str_replace_all, fixed("   "), "   ")
-#namelist.exp <- as.data.frame(namelist, stringsAsFactors = FALSE)
-#namelist.exp <- droplevels(namelist.exp)
 namelist.s <- word(namelist, 1,2, sep=" ")
 namelist.s <- lapply(namelist.s, str_replace_all, fixed(","), "+")
 namelist.s <- lapply(namelist.s, str_replace_all, fixed(" "), "")
@@ -55,7 +95,6 @@ namelist.s <- lapply(namelist.s, str_replace_all, fixed(" "), "")
 
 ## approaches 
 library(xml2)                           # another XML package
-library(httr)                           # another one for getting web data with advanced features 
 #html <- htmlParse( content( GET(url) , as="parsed")  )
 
 getGS <- function(aname, affli, bname) {
