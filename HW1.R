@@ -1,5 +1,3 @@
-
-
 library(XML)
 library(RCurl)
 library(httr)
