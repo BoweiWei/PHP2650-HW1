@@ -82,10 +82,10 @@ df2 %>%
   filter(substring(as.character(Activity),1,1) != "T" & substring(as.character(Activity),1,1) != "F") -> df3
 
 ## remove the spaces at the end of the names
-tailremoved <- sub("\\s+$", "", df3$Contact.PI...Project.Leader)
+df3$Contact.PI...Project.Leader <- sub("\\s+$", "", df3$Contact.PI...Project.Leader)
 
 ## find unique names from the data frame
-namelist <- unique(tailremoved)
+namelist <- unique(df3$Contact.PI...Project.Leader)
 namelist.n <- lapply(namelist, str_replace_all, fixed("   "), "   ")
 
 ## remove the middle name and modify the name for search url
