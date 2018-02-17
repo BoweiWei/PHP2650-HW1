@@ -7,14 +7,8 @@ library(stringr)
 library(rvest)
 library(RDocumentation)
 library(stringr)
+library(xml2) 
 ## input the S&P 100 list
-#tables <- GET("http://en.wikipedia.org/wiki/S%26P_100")
-#tables <- readHTMLTable(rawToChar(tables$content))
-#SPList <- head(tables[3])
-#SPList <- SPList[[1]]
-#SPList[17,1] <- 'BRK-B'
-#symSP <- SPList$Symbol
-
 url <- "https://en.wikipedia.org/wiki/S%26P_100"
 
 SP100.table <- url %>%
@@ -25,14 +19,7 @@ SP100.table <- url %>%
 SP100.table <- SP100.table[[1]]
 
 # Change BRK.B to BRK-B
-
 SP100.table$Symbol[SP100.table$Symbol == 'BRK.B'] <- 'BRK-B'
-
-## input the yahoo finance data
-#URLlist <- NULL
-#for (i in 1:length(symSP)) {
-#    URLlist[i] <- paste("https://finance.yahoo.com/quote/", symSP[[i]], "/history?p=", symSP[[i]], sep = "")
-#}
 
 ## Try the standard way for downloading webpages 
 theurl <- "https://finance.yahoo.com/quote/XOM/history?p=XOM"
@@ -88,15 +75,6 @@ df3$Contact.PI...Project.Leader <- sub("\\s+$", "", df3$Contact.PI...Project.Lea
 namelist <- unique(df3$Contact.PI...Project.Leader)
 namelist.n <- lapply(namelist, str_replace_all, fixed("   "), "   ")
 
-## remove the middle name and modify the name for search url
-#namelist.s <- for (i in 1: length(namelist)) {
-#  if (length(gregexpr(namelist[1])[[1]]) +1 >= 3) {
-##    namelist.s[i] <- gsub("\\s*\\w*$", "", namelist[i])
-#  } else {namelist.s[i] <- namelist[i]}
-#}
-#namelist.e <- regexec("^[A-z].*, [A-z]*", namelist)
-#names <- regmatches(namelist, namelist.e)
-
 ## split the first, last and middle names
 namelist.split <- lapply(namelist, strsplit, " ")
 
@@ -120,13 +98,8 @@ stickthem <- function(s) {
 
 namelist.s <- lapply(namelist.s, stickthem)
 namelist.s <- lapply(namelist.s, str_replace_all, fixed(","), "%2C+")
-#namelist.s <- lapply(namelist.s, str_replace_all, fixed(" "), "+")
 
-
-## approaches 
-library(xml2)                           # another XML package
-#html <- htmlParse( content( GET(url) , as="parsed")  )
-
+## write the function to grab the data from the web
 getGS <- function(aname, affli, bname) {
   re <- NULL
   topicname <- paste0(aname, "%5BAuthor%5D+AND+", affli, "+%5BAffiliation%5D") 
@@ -145,7 +118,6 @@ getGS <- function(aname, affli, bname) {
     #Sys.sleep(10+runif(1)*20)       #random pause to fake human clicking or downloading
   return(re)
 }
-
 
 ## loop 
 re <- mapply(function(x, y) {getGS(x, "Harvard", y)}, x = namelist.s, y = namelist.n)
