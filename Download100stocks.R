@@ -43,17 +43,14 @@ downloadHPYahoo <- function(symbol) {
   hpcsv$clickElement()
 }
 
-
-newfile=c()
-allfiles=list()
-
 ##3. download the historical stock prices from Yahoo in csv format
 for (i in c(symSP)){
   downloadHPYahoo(i)
 }
 
 #4. add a column of the corresponding symbol for each csv file
-for (j in 1:len(symSP)){
+allfiles=list()
+for (j in 1:length(symSP)){
   #read the files into a list
   allfiles[[j]]<-read.csv(paste0(symSP[j],".csv"))
   #create a coranlumn with content the name of the companies
