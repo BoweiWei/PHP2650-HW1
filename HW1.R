@@ -80,7 +80,11 @@ df2 <- read.csv("NIHHarvard.csv", header = TRUE, sep = ",")
 ## remove the activity starting as T or F and save it as df3
 df2 %>%
   filter(substring(as.character(Activity),1,1) != "T" & substring(as.character(Activity),1,1) != "F") -> df3
+
+## remove the spaces at the end of the names
 tailremoved <- sub("\\s+$", "", df3$Contact.PI...Project.Leader)
+
+## find unique names from the data frame
 namelist <- unique(tailremoved)
 namelist.n <- lapply(namelist, str_replace_all, fixed("   "), "   ")
 
@@ -90,11 +94,32 @@ namelist.n <- lapply(namelist, str_replace_all, fixed("   "), "   ")
 ##    namelist.s[i] <- gsub("\\s*\\w*$", "", namelist[i])
 #  } else {namelist.s[i] <- namelist[i]}
 #}
-namelist.e <- regexec("^[A-z].*, [A-z]*", namelist)
-names <- regmatches(namelist, namelist.e)
+#namelist.e <- regexec("^[A-z].*, [A-z]*", namelist)
+#names <- regmatches(namelist, namelist.e)
 
-namelist.s <- gsub("\\s*\\w*$", "", namelist)
-namelist.s <- lapply(namelist.s, str_replace_all, fixed(", "), "%2C+")
+## split the first, last and middle names
+namelist.split <- lapply(namelist, strsplit, " ")
+
+## create a list for the namelist after middle name is removed
+namelist.s <- list()
+
+## write a function to remove the middle names
+remove.mid <- function(a) {
+  if (length(a[[1]]) >= 3) {
+    v <- a[[1]][1 : 2]
+  } else { v <- a[[1]]}
+}
+
+## apply the function to the namelist.s
+namelist.s <- lapply(namelist.split, remove.mid)
+
+## write a function to stick first name and last name back together
+stickthem <- function(s) {
+  s <- paste0(s[1], s[2])
+}
+
+namelist.s <- lapply(namelist.s, stickthem)
+namelist.s <- lapply(namelist.s, str_replace_all, fixed(","), "%2C+")
 #namelist.s <- lapply(namelist.s, str_replace_all, fixed(" "), "+")
 
 
@@ -104,7 +129,7 @@ library(xml2)                           # another XML package
 
 getGS <- function(aname, affli, bname) {
   re <- NULL
-  topicname <- paste0(aname, "%5Author%5D+AND+", affli, "%5Affiliation%5D") 
+  topicname <- paste0(aname, "%5BAuthor%5D+AND+", affli, "+%5BAffiliation%5D") 
     url <- paste0("https://www.ncbi.nlm.nih.gov/pubmed/?term=", topicname)
     html <- htmlParse(getURL(url), encoding="UTF-8")
     anum <- xpathSApply(html, "//*[@class='title_and_pager']", xmlValue)
@@ -127,12 +152,12 @@ re <- mapply(function(x, y) {getGS(x, "Harvard", y)}, x = namelist.s, y = nameli
 
 ## point out the NA means only one passage and open the passage link directly, 
 ## so conclude this situation as 1
-#re[is.na(re)] = 1
+re[is.na(re)] = 1
 
 ## join the data frame
 re.new <- as.data.frame(re, stringsAsFactors = FALSE)
 re.new <- as.data.frame(t(re.new))
-final <- left_join(df3, re.new, by = "Contact.PI...Project.Leader")
+final <- inner_join(df3, re.new, by = "Contact.PI...Project.Leader")
 final[, "searchname"] <- list(NULL)
 
 ## export the csv file from data frame
