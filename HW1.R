@@ -5,6 +5,8 @@ library(dplyr)
 library(RSelenium)
 library(stringr)
 library(rvest)
+library(RDocumentation)
+library(stringr)
 ## input the S&P 100 list
 #tables <- GET("http://en.wikipedia.org/wiki/S%26P_100")
 #tables <- readHTMLTable(rawToChar(tables$content))
@@ -78,11 +80,19 @@ df2 <- read.csv("NIHHarvard.csv", header = TRUE, sep = ",")
 ## remove the activity starting as T or F and save it as df3
 df2 %>%
   filter(substring(as.character(Activity),1,1) != "T" & substring(as.character(Activity),1,1) != "F") -> df3
-
-df3 <- as.data.frame(df3)
-
-namelist <- unique(df3$Contact.PI...Project.Leader)
+tailremoved <- sub("\\s+$", "", df3$Contact.PI...Project.Leader)
+namelist <- unique(tailremoved)
 namelist.n <- lapply(namelist, str_replace_all, fixed("   "), "   ")
+
+## remove the middle name and modify the name for search url
+#namelist.s <- for (i in 1: length(namelist)) {
+#  if (length(gregexpr(namelist[1])[[1]]) +1 >= 3) {
+##    namelist.s[i] <- gsub("\\s*\\w*$", "", namelist[i])
+#  } else {namelist.s[i] <- namelist[i]}
+#}
+namelist.e <- regexec("^[A-z].*, [A-z]*", namelist)
+names <- regmatches(namelist, namelist.e)
+
 namelist.s <- gsub("\\s*\\w*$", "", namelist)
 namelist.s <- lapply(namelist.s, str_replace_all, fixed(", "), "%2C+")
 #namelist.s <- lapply(namelist.s, str_replace_all, fixed(" "), "+")
@@ -95,13 +105,13 @@ library(xml2)                           # another XML package
 getGS <- function(aname, affli, bname) {
   re <- NULL
   topicname <- paste0(aname, "%5Author%5D+AND+", affli, "%5Affiliation%5D") 
-      url <- paste0("https://www.ncbi.nlm.nih.gov/pubmed/?term=", topicname)
+    url <- paste0("https://www.ncbi.nlm.nih.gov/pubmed/?term=", topicname)
     html <- htmlParse(getURL(url), encoding="UTF-8")
     anum <- xpathSApply(html, "//*[@class='title_and_pager']", xmlValue)
     anum <- toString(anum)
     anum <- str_replace_all(anum, fixed("  "), "")
     if (str_count(anum, "\\S+") > 4) {
-    anum <- gsub("[^0-9\\.]", "", word(anum,7)) 
+    anum <- gsub("[^0-9\\.]", "", word(anum,7))
     re <- c("searchname" = aname, "Number of Publications" = anum, "Contact.PI...Project.Leader" = bname)
     } else {
       anum <- gsub("[^0-9\\.]", "", word(anum,3))
@@ -114,6 +124,10 @@ getGS <- function(aname, affli, bname) {
 
 ## loop 
 re <- mapply(function(x, y) {getGS(x, "Harvard", y)}, x = namelist.s, y = namelist.n)
+
+## point out the NA means only one passage and open the passage link directly, 
+## so conclude this situation as 1
+#re[is.na(re)] = 1
 
 ## join the data frame
 re.new <- as.data.frame(re, stringsAsFactors = FALSE)
